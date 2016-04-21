@@ -1,0 +1,1003 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+               xmlns:s="library://ns.adobe.com/flex/spark"
+               xmlns:mx="library://ns.adobe.com/flex/mx"
+               xmlns:components="components.*" width="100%" height="100%" backgroundColor="#FFFFFF"
+               color="#000000" creationComplete="application_creationCompleteHandler(event)"
+               fontSize="12" fontWeight="bold" pageTitle="FlexMySQLSync">
+    <fx:Style source="styles/estilos.css"/>
+    <fx:Script>
+		<![CDATA[
+        import components.waitWindow;
+
+        import mx.collections.ArrayCollection;
+        import mx.controls.Alert;
+        import mx.events.CloseEvent;
+        import mx.events.FlexEvent;
+        import mx.managers.BrowserManager;
+        import mx.managers.PopUpManager;
+        import mx.rpc.events.FaultEvent;
+        import mx.rpc.events.ResultEvent;
+        import mx.utils.ObjectUtil;
+
+        private var cookie:SharedObject = SharedObject.getLocal('Dados');
+        [Bindable]
+        private var bancosDados1:ArrayCollection;
+        [Bindable]
+        private var bancosDados2:ArrayCollection;
+        [Bindable]
+        private var tabelas1:ArrayCollection;
+        [Bindable]
+        private var tabelas2:ArrayCollection;
+        [Bindable]
+        private var campos1:ArrayCollection;
+        [Bindable]
+        private var campos2:ArrayCollection;
+        [Bindable]
+        private var dados1:ArrayCollection;
+        [Bindable]
+        private var dados2:ArrayCollection;
+        [Bindable]
+        private var resultado:ArrayCollection;
+        [Bindable]
+        private var titulo:String = "FlexMySQLSync";
+        [Bindable]
+        private var versao:String = "v4.43";
+        [Bindable]
+        private var descricao:String = "Sincronizador de bancos de dados MySQL dos sistemas da iAutomate.";
+
+        private var myFilter:FileFilter = new FileFilter("XML (Arquivo de Configuração)", "*.xml");
+        private var fr:FileReference = new FileReference();
+        private var fo:FileReference = new FileReference();
+        private var fs:FileReference = new FileReference();
+
+        private var wait:waitWindow = new waitWindow();
+
+        [Bindable]
+        private var errosComparaTodas:int = 0;
+        [Bindable]
+        private var errosCompararTabelas:int = 0;
+
+        [Bindable]
+        private var tabela01:String = "";
+        [Bindable]
+        private var tabela02:String = "";
+
+        protected function application_creationCompleteHandler(event:FlexEvent):void {
+            BrowserManager.getInstance().setTitle(titulo + " " + versao + " - " + descricao);
+
+            if (cookie.data.hasOwnProperty('usuario1') && cookie.data.hasOwnProperty('senha1') && cookie.data.hasOwnProperty('servidor1') && cookie.data.hasOwnProperty('porta1')) {
+                textInputUsuario1.text = cookie.data.usuario1;
+                textInputSenha1.text = cookie.data.senha1;
+                textInputServidor1.text = cookie.data.servidor1;
+                textInputPorta1.text = cookie.data.porta1;
+                checkBoxSalvar1.selected = true;
+            }
+            if (cookie.data.hasOwnProperty('usuario2') && cookie.data.hasOwnProperty('senha2') && cookie.data.hasOwnProperty('servidor2') && cookie.data.hasOwnProperty('porta2')) {
+                textInputUsuario2.text = cookie.data.usuario2;
+                textInputSenha2.text = cookie.data.senha2;
+                textInputServidor2.text = cookie.data.servidor2;
+                textInputPorta2.text = cookie.data.porta2;
+                checkBoxSalvar2.selected = true;
+            }
+        }
+
+        protected function remote_faultHandler(event:FaultEvent):void {
+            aguardeWindow(false);
+            Alert.show("Code(" + event.fault.errorID.toString() + "): " + event.fault.faultString + "\nDetalhes:" + event.fault.faultDetail + "\n" + ObjectUtil.toString(event.fault.getStackTrace()), "ERRO(" + event.fault.faultCode + ")");
+        }
+
+        protected function buttonTestar_clickHandler(tipo:int):void {
+            if (tipo == 1)
+                remote1.testarConexao(textInputUsuario1.text, textInputSenha1.text, textInputServidor1.text, textInputPorta1.text);
+            else
+                remote2.testarConexao(textInputUsuario2.text, textInputSenha2.text, textInputServidor2.text, textInputPorta2.text);
+
+        }
+
+        protected static function testarConexao1_resultHandler(event:ResultEvent):void {
+            Alert.show("Conexão de origem foi testada com sucesso !!!", "OK");
+        }
+
+        protected static function testarConexao2_resultHandler(event:ResultEvent):void {
+            Alert.show("Conexão de destino foi testada com sucesso !!!", "OK");
+        }
+
+        protected function buttonConectar1_clickHandler(event:MouseEvent):void {
+            if (checkBoxSalvar1.selected) {
+                cookie.data.usuario1 = textInputUsuario1.text;
+                cookie.data.senha1 = textInputSenha1.text;
+                cookie.data.servidor1 = textInputServidor1.text;
+                cookie.data.porta1 = textInputPorta1.text;
+                cookie.flush();
+            } else {
+                cookie.clear();
+            }
+            aguardeWindow(true);
+            remote1.listarBancoDados(textInputUsuario1.text, textInputSenha1.text, textInputServidor1.text, textInputPorta1.text);
+        }
+
+        protected function buttonConectar2_clickHandler(event:MouseEvent):void {
+            if (checkBoxSalvar2.selected) {
+                cookie.data.usuario2 = textInputUsuario2.text;
+                cookie.data.senha2 = textInputSenha2.text;
+                cookie.data.servidor2 = textInputServidor2.text;
+                cookie.data.porta2 = textInputPorta2.text;
+                cookie.flush();
+            } else {
+                cookie.clear();
+            }
+            aguardeWindow(true);
+            remote2.listarBancoDados(textInputUsuario2.text, textInputSenha2.text, textInputServidor2.text, textInputPorta2.text);
+        }
+
+        protected function listarBancoDados1_resultHandler(event:ResultEvent):void {
+            aguardeWindow(false);
+            textInputServidor1.enabled = false;
+            textInputPorta1.enabled = false;
+            textInputUsuario1.enabled = false;
+            textInputSenha1.enabled = false;
+            checkBoxSalvar1.enabled = false;
+            buttonTestar1.enabled = false;
+            buttonConectar1.enabled = false;
+            buttonDesconectar1.enabled = true;
+            buttonExportar1.enabled = true;
+            buttonImportar1.enabled = false;
+            itemBancosDados1.visible = true;
+            bancosDados1 = new ArrayCollection();
+            bancosDados1.addItem({ Database:"iautomat_apps" });
+            //bancosDados1 = new ArrayCollection(event.result as Array);
+        }
+
+        protected function listarBancoDados2_resultHandler(event:ResultEvent):void {
+            aguardeWindow(false);
+            textInputServidor2.enabled = false;
+            textInputPorta2.enabled = false;
+            textInputUsuario2.enabled = false;
+            textInputSenha2.enabled = false;
+            checkBoxSalvar2.enabled = false;
+            buttonTestar2.enabled = false;
+            buttonConectar2.enabled = false;
+            buttonDesconectar2.enabled = true;
+            buttonExportar2.enabled = true;
+            buttonImportar2.enabled = false;
+            itemBancosDados2.visible = true;
+            bancosDados2 = new ArrayCollection();
+            bancosDados2.addItem({ Database:"iautomat_apps" });
+            //bancosDados2 = new ArrayCollection(event.result as Array);
+        }
+
+        protected function buttonDesconectar_clickHandler(tipo:int):void {
+            if (tipo == 1) {
+                textInputServidor1.enabled = true;
+                textInputPorta1.enabled = true;
+                textInputUsuario1.enabled = true;
+                textInputSenha1.enabled = true;
+                checkBoxSalvar1.enabled = true;
+                buttonTestar1.enabled = true;
+                buttonConectar1.enabled = true;
+                buttonDesconectar1.enabled = false;
+                buttonImportar1.enabled = true;
+                buttonExportar1.enabled = false;
+                buttonExportCSV1.enabled = false;
+                itemBancosDados1.visible = false;
+                itemTabelas1.visible = false;
+                bancosDados1 = new ArrayCollection();
+                campos1 = new ArrayCollection();
+            } else {
+                textInputServidor2.enabled = true;
+                textInputPorta2.enabled = true;
+                textInputUsuario2.enabled = true;
+                textInputSenha2.enabled = true;
+                checkBoxSalvar2.enabled = true;
+                buttonTestar2.enabled = true;
+                buttonConectar2.enabled = true;
+                buttonDesconectar2.enabled = false;
+                buttonImportar2.enabled = true;
+                buttonExportar2.enabled = false;
+                buttonExportCSV2.enabled = false;
+                itemBancosDados2.visible = false;
+                itemTabelas2.visible = false;
+                bancosDados2 = new ArrayCollection();
+                campos2 = new ArrayCollection();
+            }
+        }
+
+        protected function buttonListarTabelas_clickHandler(tipo:int):void {
+            if (tipo == 1) {
+                if (dropDownListBancos1.selectedIndex != -1) {
+                    aguardeWindow(true);
+                    tabelas1 = new ArrayCollection;
+                    remote1.listarTabelas(textInputUsuario1.text, textInputSenha1.text, textInputServidor1.text, textInputPorta1.text, dropDownListBancos1.selectedItem.Database);
+                } else {
+                    Alert.show("Selecione um banco de dados de origem !!!", "ERRO");
+                }
+            } else {
+                if (dropDownListBancos2.selectedIndex != -1) {
+                    aguardeWindow(true);
+                    tabelas2 = new ArrayCollection;
+                    remote2.listarTabelas(textInputUsuario2.text, textInputSenha2.text, textInputServidor2.text, textInputPorta1.text, dropDownListBancos2.selectedItem.Database);
+                } else {
+                    Alert.show("Selecione um banco de dados de destino !!!", "ERRO");
+                }
+            }
+        }
+
+        protected function listarTabelas1_resultHandler(event:ResultEvent):void {
+            aguardeWindow(false);
+            itemTabelas1.visible = true;
+            tabelas1 = new ArrayCollection();
+            tabelas1.addItem({ Tables_in_iautomat_apps:"test_pessoas" });
+            tabelas1.addItem({ Tables_in_iautomat_apps:"test_empresas" });
+            //tabelas1 = new ArrayCollection(event.result as Array);
+            if (tabelas1.length != 0 && tabelas2.length != 0) {
+                vboxCompararTodasTabelas.enabled = true;
+            }
+        }
+
+        protected function listarTabelas2_resultHandler(event:ResultEvent):void {
+            aguardeWindow(false);
+            itemTabelas2.visible = true;
+            tabelas2.addItem({ Tables_in_iautomat_apps:"test_pessoas" });
+            tabelas2.addItem({ Tables_in_iautomat_apps:"test_empresas" });
+            //tabelas2 = new ArrayCollection(event.result as Array);
+            if (tabelas1.length != 0 && tabelas2.length != 0) {
+                vboxCompararTodasTabelas.enabled = true;
+            }
+        }
+
+        protected function buttonListarCampos_clickHandler(tipo:int):void {
+            if (tipo == 1) {
+                if (dropDownListBancos1.selectedIndex != -1) {
+                    aguardeWindow(true);
+                    campos1 = new ArrayCollection;
+                    remote1.listarCampos(textInputUsuario1.text, textInputSenha1.text, textInputServidor1.text, textInputPorta1.text, dropDownListBancos1.selectedItem.Database, dropDownListTabelas1.selectedItem['Tables_in_' + dropDownListBancos1.selectedItem.Database]);
+                } else {
+                    Alert.show("Selecione uma tabela de origem !!!", "ERRO");
+                }
+            } else {
+                if (dropDownListBancos2.selectedIndex != -1) {
+                    aguardeWindow(true);
+                    campos2 = new ArrayCollection;
+                    remote2.listarCampos(textInputUsuario2.text, textInputSenha2.text, textInputServidor2.text, textInputPorta2.text, dropDownListBancos2.selectedItem.Database, dropDownListTabelas2.selectedItem['Tables_in_' + dropDownListBancos2.selectedItem.Database]);
+                } else {
+                    Alert.show("Selecione uma tabela de destino !!!", "ERRO");
+                }
+            }
+        }
+
+        protected function listarCampos1_resultHandler(event:ResultEvent):void {
+            aguardeWindow(false);
+            buttonExportCSV1.enabled = true;
+            campos1 = new ArrayCollection(event.result as Array);
+            if (campos1.length != 0 && campos2.length != 0) {
+                vboxCompararTabelas.enabled = true;
+                vboxCompararDados.enabled = true;
+            }
+        }
+
+        protected function listarCampos2_resultHandler(event:ResultEvent):void {
+            aguardeWindow(false);
+            buttonExportCSV2.enabled = true;
+            campos2 = new ArrayCollection(event.result as Array);
+            if (campos1.length != 0 && campos2.length != 0) {
+                vboxCompararTabelas.enabled = true;
+                vboxCompararDados.enabled = true;
+            }
+        }
+
+        protected function listarDados1_resultHandler(event:ResultEvent):void {
+            dados1 = new ArrayCollection(event.result as Array);
+            if (dados1.length > 0 && dados2.length > 0)
+                aguardeWindow(false);
+        }
+
+        protected function listarDados2_resultHandler(event:ResultEvent):void {
+            dados2 = new ArrayCollection(event.result as Array);
+            if (dados1.length > 0 && dados2.length > 0)
+                aguardeWindow(false);
+        }
+
+        protected function buttonExportar1_clickHandler(event:MouseEvent):void {
+
+            Alert.show("Esta função está desabilitada", "AVISO");
+            /*var dt:Date = new Date();
+            var strData:String = dt.fullYear.toString();
+            if ((dt.month + 1) < 10)
+                strData += "-0" + (dt.month + 1);
+            else
+                strData += "-" + (dt.month + 1);
+            if (dt.date < 10)
+                strData += "-0" + dt.date;
+            else
+                strData += "-" + dt.date;
+            var xmlExp:String = '<?xml version="1.0" encoding="ISO-8859-1"?>\n';
+            xmlExp += '<conf>\n';
+            xmlExp += '<conexao>\n';
+            xmlExp += '\t<server>' + textInputServidor1.text + '</server>\n';
+            xmlExp += '\t<port>' + textInputPorta1.text + '</port>\n';
+            xmlExp += '\t<user>' + textInputUsuario1.text + '</user>\n';
+            xmlExp += '\t<password>' + textInputSenha1.text + '</password>\n';
+            xmlExp += '\t<save>' + checkBoxSalvar1.selected + '</save>\n';
+            xmlExp += '</conexao>\n';
+            xmlExp += '</conf>';
+            fs.save(xmlExp, "FlexMySQLSync_" + textInputServidor1.text + "_" + strData + "_Conf.xml");*/
+        }
+
+        protected function buttonExportar2_clickHandler(event:MouseEvent):void {
+
+            Alert.show("Esta função está desabilitada", "AVISO");
+
+            /*var dt:Date = new Date();
+            var strData:String = dt.fullYear.toString();
+            if ((dt.month + 1) < 10)
+                strData += "-0" + (dt.month + 1);
+            else
+                strData += "-" + (dt.month + 1);
+            if (dt.date < 10)
+                strData += "-0" + dt.date;
+            else
+                strData += "-" + dt.date;
+            var xmlExp:String = '<?xml version="1.0" encoding="ISO-8859-1"?>\n';
+            xmlExp += '<conf>\n';
+            xmlExp += '<conexao>\n';
+            xmlExp += '\t<server>' + textInputServidor2.text + '</server>\n';
+            xmlExp += '\t<port>' + textInputPorta2.text + '</port>\n';
+            xmlExp += '\t<user>' + textInputUsuario2.text + '</user>\n';
+            xmlExp += '\t<password>' + textInputSenha2.text + '</password>\n';
+            xmlExp += '\t<save>' + checkBoxSalvar2.selected + '</save>\n';
+            xmlExp += '</conexao>\n';
+            xmlExp += '</conf>';
+            fs.save(xmlExp, "FlexMySQLSync_" + textInputServidor2.text + "_" + strData + "_Conf.xml");*/
+        }
+
+        protected function buttonImportar1_clickHandler(event:MouseEvent):void {
+            fo.removeEventListener(Event.SELECT, onFileSelect2);
+            fo.removeEventListener(Event.COMPLETE, onFileComplete2);
+            fo.browse([myFilter]);
+            fo.addEventListener(Event.SELECT, onFileSelect1);
+            fo.addEventListener(Event.COMPLETE, onFileComplete1);
+        }
+
+        private function onFileSelect1(event:Event):void {
+            fo.load();
+        }
+
+        private function onFileComplete1(event:Event):void {
+            var confXML:XML = XML(fo.data.readUTFBytes(fo.data.length));
+            textInputServidor1.text = confXML.conexao[0].server;
+            textInputPorta1.text = confXML.conexao[0].port;
+            textInputUsuario1.text = confXML.conexao[0].user;
+            textInputSenha1.text = confXML.conexao[0].password;
+            checkBoxSalvar1.selected = confXML.conexao[0].save;
+            Alert.show("As configurações de origem foram importadas com sucesso !!!", "AVISO");
+        }
+
+        protected function buttonImportar2_clickHandler(event:MouseEvent):void {
+            fo.removeEventListener(Event.SELECT, onFileSelect1);
+            fo.removeEventListener(Event.COMPLETE, onFileComplete1);
+            fo.browse([myFilter]);
+            fo.addEventListener(Event.SELECT, onFileSelect2);
+            fo.addEventListener(Event.COMPLETE, onFileComplete2);
+        }
+
+        private function onFileSelect2(event:Event):void {
+            fo.load();
+        }
+
+        private function onFileComplete2(event:Event):void {
+            var confXML:XML = XML(fo.data.readUTFBytes(fo.data.length));
+            textInputServidor2.text = confXML.conexao[0].server;
+            textInputPorta2.text = confXML.conexao[0].port;
+            textInputUsuario2.text = confXML.conexao[0].user;
+            textInputSenha2.text = confXML.conexao[0].password;
+            checkBoxSalvar2.selected = confXML.conexao[0].save;
+            Alert.show("As configurações de destino foram importadas com sucesso !!!", "AVISO");
+        }
+
+        protected function buttonExportCSV1_clickHandler(event:MouseEvent):void {
+            var csvExp:String = "Campo;Tipo;Padrão;Extra;Nulo;Collation;Comentário\n";
+            for (var i:int = 0; i < campos1.length; i++) {
+                csvExp += campos1.getItemAt(i)["Field"] + ';';
+                csvExp += campos1.getItemAt(i)["Type"] + ';';
+                csvExp += campos1.getItemAt(i)["Default"] + ',';
+                csvExp += campos1.getItemAt(i)["Extra"] + ';';
+                csvExp += campos1.getItemAt(i)["Null"] + ';';
+                csvExp += campos1.getItemAt(i)["Collation"] + ';';
+                csvExp += campos1.getItemAt(i)["Comment"] + '\n';
+            }
+            fs.save(csvExp, "FlexPHPBDtoVO1_" + dropDownListTabelas1.selectedItem['Tables_in_' + dropDownListBancos1.selectedItem.Database] + "_Table.csv");
+        }
+
+        protected function buttonExportCSV2_clickHandler(event:MouseEvent):void {
+            var csvExp:String = "Campo;Tipo;Padrão;Extra;Nulo;Collation;Comentário\n";
+            for (var i:int = 0; i < campos2.length; i++) {
+                csvExp += campos2.getItemAt(i)["Field"] + ';';
+                csvExp += campos2.getItemAt(i)["Type"] + ';';
+                csvExp += campos2.getItemAt(i)["Default"] + ';';
+                csvExp += campos2.getItemAt(i)["Extra"] + ';';
+                csvExp += campos2.getItemAt(i)["Null"] + ';';
+                csvExp += campos2.getItemAt(i)["Collation"] + ';';
+                csvExp += campos2.getItemAt(i)["Comment"] + '\n';
+            }
+            fs.save(csvExp, "FlexPHPBDtoVO2_" + dropDownListTabelas2.selectedItem['Tables_in_' + dropDownListBancos2.selectedItem.Database] + "_Table.csv");
+        }
+
+        protected function buttonCompararTabelas_clickHandler(event:MouseEvent):void {
+            var i:int, j:int;
+            aguardeWindow(true);
+            var text:String = "";
+            errosCompararTabelas = 0;
+            text += "<font color='#0000FF'>";
+            tabela01 = dropDownListTabelas1.selectedItem['Tables_in_' + dropDownListBancos1.selectedItem.Database];
+            tabela02 = dropDownListTabelas2.selectedItem['Tables_in_' + dropDownListBancos2.selectedItem.Database];
+            text += "</font>";
+
+            for (i = 0; i < campos1.length; i++) {
+                text += "\n[" + i + "]";
+                for (j = 0; j < campos2.length; j++) {
+                    if (campos1[i].Field == campos2[j].Field) {
+                        text += "\n\tField: " + campos1[i].Field + " -> " + campos2[j].Field;
+                        if (i == j)
+                            text += " = <font color='#0000FF'>[OK]</font>";
+                        else {
+                            text += " = <font color='#FF0000'>[ERRO]</font>";
+                            errosCompararTabelas++;
+                        }
+                        var type1:Array = (campos1[i].Type as String).split("(");
+                        var type2:Array = (campos2[j].Type as String).split("(");
+                        text += "\n\tType: " + type1[0] + " -> " + type2[0];
+                        if (type1[0] == type2[0])
+                            text += " = <font color='#0000FF'>[OK]</font>";
+                        else {
+                            text += " = <font color='#FF0000'>[ERRO]</font>";
+                            errosCompararTabelas++;
+                        }
+                        if (type1.length > 1 && type2.length > 1) {
+                            var size1:String = (type1[1] as String).substr(0, (type1[1] as String).length - 1);
+                            var size2:String = (type2[1] as String).substr(0, (type2[1] as String).length - 1);
+                            text += "\n\tSize: " + size1 + " -> " + size2;
+                            if (size1 == size2)
+                                text += " = <font color='#0000FF'>[OK]</font>";
+                            else {
+                                text += " = <font color='#FF0000'>[ERRO]</font>";
+                                errosCompararTabelas++;
+                            }
+                        }
+                        text += "\n\tDefault: " + campos1[i].Default + " -> " + campos2[j].Default;
+                        if (campos1[i].Default == campos2[j].Default)
+                            text += " = <font color='#0000FF'>[OK]</font>";
+                        else {
+                            text += " = <font color='#FF0000'>[ERRO]</font>";
+                            errosCompararTabelas++;
+                        }
+                        text += "\n\tExtra: " + campos1[i].Extra + " -> " + campos2[j].Extra;
+                        if (campos1[i].Extra == campos2[j].Extra)
+                            text += " = <font color='#0000FF'>[OK]</font>";
+                        else {
+                            text += " = <font color='#FF0000'>[ERRO]</font>";
+                            errosCompararTabelas++;
+                        }
+                        text += "\n\tNull: " + campos1[i].Null + " -> " + campos2[j].Null;
+                        if (campos1[i].Null == campos2[j].Null)
+                            text += " = <font color='#0000FF'>[OK]</font>";
+                        else {
+                            text += " = <font color='#FF0000'>[ERRO]</font>";
+                            errosCompararTabelas++;
+                        }
+                    }
+                }
+                text += "\n";
+            }
+            textAreaComparar.htmlText = text;
+            aguardeWindow(false);
+        }
+
+        protected function buttonCompararDados_clickHandler(event:MouseEvent):void {
+            tabela01 = dropDownListTabelas1.selectedItem['Tables_in_' + dropDownListBancos1.selectedItem.Database];
+            tabela02 = dropDownListTabelas2.selectedItem['Tables_in_' + dropDownListBancos2.selectedItem.Database];
+            dados1 = new ArrayCollection;
+            dados2 = new ArrayCollection;
+            resultado = new ArrayCollection;
+            aguardeWindow(true);
+            remote1.listarDados(textInputUsuario1.text, textInputSenha1.text, textInputServidor1.text, textInputPorta1.text, dropDownListBancos1.selectedItem.Database, tabela01);
+            remote2.listarDados(textInputUsuario2.text, textInputSenha2.text, textInputServidor2.text, textInputPorta2.text, dropDownListBancos2.selectedItem.Database, tabela02);
+        }
+
+        private function aguardeWindow(status:Boolean):void {
+            if (status) {
+                PopUpManager.addPopUp(wait, this, true);
+                PopUpManager.centerPopUp(wait);
+            } else {
+                PopUpManager.removePopUp(wait);
+            }
+        }
+
+        protected function buttonCompararIds_clickHandler(event:MouseEvent):void {
+            aguardeWindow(true);
+            resultado = new ArrayCollection;
+            var i:int, j:int;
+            var id:Object, obj1:Object, obj2:Object, erro:Object;
+            var ok:Boolean = false;
+            for (i = 0; i < dados1.length; i++) {
+                id = campos1.getItemAt(0) as Object;
+                obj1 = dados1[i] as Object;
+                ok = false;
+                for (j = 0; j < dados2.length; j++) {
+                    obj2 = dados2[j] as Object;
+                    ok = ok || (obj1[id['Field']] == obj2[id['Field']]);
+                }
+                if (!ok) {
+                    erro = {};
+                    erro.tipo = "Destino";
+                    erro.id = obj1[id['Field']];
+                    resultado.addItem(erro);
+                }
+            }
+            for (i = 0; i < dados2.length; i++) {
+                id = campos2.getItemAt(0) as Object;
+                obj2 = dados2[i] as Object;
+                ok = false;
+                for (j = 0; j < dados1.length; j++) {
+                    obj1 = dados1[j] as Object;
+                    ok = ok || (obj1[id['Field']] == obj2[id['Field']]);
+                }
+                if (!ok) {
+                    erro = {};
+                    erro.tipo = "Origem";
+                    erro.id = obj2[id['Field']];
+                    resultado.addItem(erro);
+                }
+            }
+            aguardeWindow(false);
+        }
+
+        protected function buttonComparar_clickHandler(event:MouseEvent):void {
+            aguardeWindow(true);
+            System.setClipboard(textInputUsuario1.text + "," + textInputSenha1.text + "," + textInputServidor1.text + "," + textInputPorta1.text + "," + dropDownListBancos1.selectedItem.Database + "," + textInputUsuario2.text + "," + textInputSenha2.text + "," + textInputServidor2.text + "," + textInputPorta2.text + "," + dropDownListBancos2.selectedItem.Database + "," + checkBoxComentario.selected + "," + checkBoxErrorOnly.selected);
+            remote1.compararTodasTabelas(textInputUsuario1.text, textInputSenha1.text, textInputServidor1.text, textInputPorta1.text, dropDownListBancos1.selectedItem.Database, textInputUsuario2.text, textInputSenha2.text, textInputServidor2.text, textInputPorta2.text, dropDownListBancos2.selectedItem.Database, checkBoxComentario.selected, checkBoxErrorOnly.selected)
+        }
+
+        protected function compararTodasTabelas_resultHandler(event:ResultEvent):void {
+            var resposta:Array = event.result as Array;
+            aguardeWindow(false);
+            textAreaCompararTodas.htmlText = resposta[0] as String;
+            errosComparaTodas = resposta[1];
+            textAreaSQL.text = resposta[2];
+        }
+
+        protected function buttonCopiarSQL_clickHandler(event:MouseEvent):void {
+            if (textAreaSQL.text != "") {
+                System.setClipboard(textAreaSQL.text);
+                Alert.show("O script em SQL foi copiado para a área de transferência !!!", "AVISO");
+            }
+        }
+
+        protected function buttonSalvarSQL_clickHandler(event:MouseEvent):void {
+            if (textAreaSQL.text != "")
+                fs.save(textAreaSQL.text, "update_" + dropDownListBancos2.selectedItem.Database + ".sql");
+        }
+
+        protected function buttonCopiar_clickHandler(event:MouseEvent):void {
+            textInputServidor2.text = textInputServidor1.text;
+            textInputPorta2.text = textInputPorta1.text;
+            textInputUsuario2.text = textInputUsuario1.text;
+            textInputSenha2.text = textInputSenha1.text;
+        }
+
+        protected function buttonExecutarSQL_clickHandler(event:MouseEvent):void {
+            Alert.show("Você confirma a execução do script SQL acima no banco de dados '" + dropDownListBancos1.selectedItem.Database + "' ?", "CONFIRMAÇÃO", Alert.NO | Alert.YES, null, closeHandler, null, Alert.NO);
+        }
+
+        private function closeHandler(event:CloseEvent):void {
+            if (event.detail == Alert.YES) {
+                aguardeWindow(true);
+                remote2.executarSQL(textInputUsuario2.text, textInputSenha2.text, textInputServidor2.text, textInputPorta2.text, dropDownListBancos2.selectedItem.Database, textAreaSQL.text);
+            }
+        }
+
+        protected function executarSQL_resultHandler(event:ResultEvent):void {
+            var resposta:Boolean = event.result as Boolean;
+            aguardeWindow(false);
+            if (resposta)
+                Alert.show("SQL executado com sucesso !!!", "SUCESSO");
+            else
+                Alert.show("SQL não foi executado sucesso !!!", "ERRO");
+        }
+
+        protected function imageAbout_clickHandler(event:MouseEvent):void {
+            var sobre:about = new about();
+            sobre.titulo = titulo;
+            sobre.versao = versao;
+            sobre.descricao = descricao;
+            PopUpManager.addPopUp(sobre, this, true);
+            PopUpManager.centerPopUp(sobre);
+        }
+        ]]>
+	</fx:Script>
+
+    <fx:Declarations>
+        <s:RemoteObject endpoint="amf/index.php"
+                        id="remote1"
+                        source="PHPBDService"
+                        destination="PHPBDService"
+                        fault="remote_faultHandler(event)">
+            <s:method name="testarConexao" result="testarConexao1_resultHandler(event)"/>
+            <s:method name="listarBancoDados" result="listarBancoDados1_resultHandler(event)"/>
+            <s:method name="listarTabelas" result="listarTabelas1_resultHandler(event)"/>
+            <s:method name="listarCampos" result="listarCampos1_resultHandler(event)"/>
+            <s:method name="listarDados" result="listarDados1_resultHandler(event)"/>
+            <s:method name="compararTodasTabelas" result="compararTodasTabelas_resultHandler(event)"/>
+        </s:RemoteObject>
+        <s:RemoteObject endpoint="amf/index.php"
+                        id="remote2"
+                        source="PHPBDService"
+                        destination="PHPBDService"
+                        fault="remote_faultHandler(event)">
+            <s:method name="testarConexao" result="testarConexao2_resultHandler(event)"/>
+            <s:method name="listarBancoDados" result="listarBancoDados2_resultHandler(event)"/>
+            <s:method name="listarTabelas" result="listarTabelas2_resultHandler(event)"/>
+            <s:method name="listarCampos" result="listarCampos2_resultHandler(event)"/>
+            <s:method name="listarDados" result="listarDados2_resultHandler(event)"/>
+            <s:method name="executarSQL" result="executarSQL_resultHandler(event)"/>
+        </s:RemoteObject>
+    </fx:Declarations>
+    <s:controlBarContent>
+        <mx:HBox width="100%" verticalAlign="middle" horizontalAlign="center">
+            <s:Image id="imageAbout" source="@Embed(source='assets/icon_048.png')"/>
+            <mx:VBox>
+                <mx:HBox>
+                    <s:Label text="{titulo} {versao}" fontSize="18"/>
+                    <mx:Image source="@Embed(source='assets/about-024.png')" buttonMode="true"
+                              toolTip="Saiba mais sobre o FlexMySQLSync." click="imageAbout_clickHandler(event)"/>
+                </mx:HBox>
+                <s:Label text="{descricao}" fontSize="12"/>
+            </mx:VBox>
+        </mx:HBox>
+    </s:controlBarContent>
+    <mx:VBox width="100%" height="100%" paddingTop="10" paddingBottom="10" paddingLeft="10" paddingRight="10" horizontalAlign="center">
+        <mx:TabNavigator id="tabnavigator" borderStyle="solid" width="100%" height="100%"
+                         paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10">
+            <mx:VBox label="Bancos de Dados" width="100%" height="100%" icon="@Embed(source='assets/db-024.png')">
+                <mx:HBox width="100%" horizontalAlign="center">
+                    <s:VGroup width="100%" height="100%">
+                        <mx:Form width="100%" height="100%">
+                            <s:FormHeading label="# BANCO DE DADOS DE ORIGEM #"/>
+                            <mx:FormItem label="Servidor:">
+                                <mx:HBox>
+                                    <s:TextInput id="textInputServidor1" width="250" text="localhost" editable="false"/>
+                                    <components:ButtonInfo
+                                            toolTip="Endereço do servidor MySQL de origem. Ex.: localhost (Clique para inserir o exemplo)."
+                                            click="{textInputServidor1.text = 'localhost'}"
+                                            enabled="{textInputServidor1.enabled}"/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <mx:FormItem label="Porta:">
+                                <mx:HBox>
+                                    <s:TextInput id="textInputPorta1" width="50" text="3306" editable="false"/>
+                                    <components:ButtonInfo
+                                            toolTip="Porta do servidor MySQL de origem. Ex.: 3306 (Clique para inserir o exemplo)."
+                                            click="{textInputPorta1.text = '3306'}"
+                                            enabled="{textInputPorta1.enabled}"/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <mx:FormItem label="Usuário do Banco de Dados:">
+                                <mx:HBox>
+                                    <s:TextInput id="textInputUsuario1" width="250" text="iautomat_apps" editable="false"/>
+                                    <components:ButtonInfo
+                                            toolTip="Usuário do servidor MySQL de origem. Ex.: root (Clique para inserir o exemplo)."
+                                            click="{textInputUsuario1.text = 'root'}"
+                                            enabled="{textInputUsuario1.enabled}"/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <mx:FormItem label="Senha do Banco de Dados:">
+                                <mx:HBox>
+                                    <s:TextInput id="textInputSenha1" width="250" text="DHTBy5F#H&amp;b9sP6=" editable="false" displayAsPassword="true"/>
+                                    <components:ButtonInfo
+                                            toolTip="Senha do servidor MySQL de origem. Ex.: root (Clique para inserir o exemplo)."
+                                            click="{textInputSenha1.text = 'root'}"
+                                            enabled="{textInputSenha1.enabled}"/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <mx:FormItem label="Salvar ?">
+                                <mx:HBox>
+                                    <s:CheckBox id="checkBoxSalvar1"/>
+                                    <components:ButtonInfo toolTip="Salvar os dados de acesso em um cookie."
+                                                           enabled="{checkBoxSalvar1.enabled}"/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <mx:FormItem id="itemBancosDados1" label="Bancos de Dados:" visible="false">
+                                <mx:HBox>
+                                    <s:DropDownList id="dropDownListBancos1" width="250" height="27"
+                                                    change="buttonListarTabelas_clickHandler(1)"
+                                                    dataProvider="{bancosDados1}" labelField="Database"/>
+                                    <s:Button id="buttonListarBanco1" label="Atualizar"
+                                              icon="@Embed(source='assets/agt_reload-024.png')"
+                                              click="buttonListarTabelas_clickHandler(1)"
+                                              toolTip="Atualiza as tabelas do banco de dados selecionado."/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <mx:FormItem id="itemTabelas1" label="Tabelas:" visible="false">
+                                <mx:HBox>
+                                    <s:DropDownList id="dropDownListTabelas1" width="250" height="27"
+                                                    change="buttonListarCampos_clickHandler(1)"
+                                                    dataProvider="{tabelas1}"
+                                                    labelField="{'Tables_in_'+dropDownListBancos1.selectedItem.Database}"/>
+                                    <s:Button id="buttonListarTabelas1" label="Atualizar"
+                                              icon="@Embed(source='assets/agt_reload-024.png')"
+                                              click="buttonListarCampos_clickHandler(1)"
+                                              toolTip="Atualiza os campos da tabela selecionada."/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <s:Spacer width="100%" height="5"/>
+                            <s:HGroup width="100%">
+                                <s:Button id="buttonImportar1" label="IMPORTAR"
+                                          icon="@Embed(source='assets/db_update-024.png')"
+                                          enabled="true" click="buttonImportar1_clickHandler(event)"
+                                          toolTip="Importe as configurações do servidor de origem."/>
+                                <s:Button id="buttonTestar1" label="TESTAR" icon="@Embed(source='assets/ok-024.png')"
+                                          enabled="true" click="buttonTestar_clickHandler(1)"
+                                          toolTip="Teste a conexão com o banco de dados do servidor de origem configurado."/>
+                                <s:Button id="buttonConectar1" label="CONECTAR"
+                                          icon="@Embed(source='assets/connect_established-024.png')"
+                                          enabled="true" click="buttonConectar1_clickHandler(event)"
+                                          toolTip="Conecte com o banco de dados do servidor de origem configurado."/>
+                                <s:Button id="buttonExportar1" label="EXPORTAR"
+                                          icon="@Embed(source='assets/db_comit-024.png')"
+                                          enabled="false" click="buttonExportar1_clickHandler(event)"
+                                          toolTip="Exporte as configurações do servidor de origem."/>
+                                <s:Button id="buttonDesconectar1" label="DESCONECTAR"
+                                          icon="@Embed(source='assets/connect_no-024.png')"
+                                          enabled="false" click="buttonDesconectar_clickHandler(1)"
+                                          toolTip="Desconecta o banco de dados do servidor de origem ativo."/>
+                                <s:Spacer width="100%"/>
+                                <s:Button id="buttonCopiar" label="COPIAR"
+                                          icon="@Embed(source='assets/forward-024.png')"
+                                          enabled="{buttonConectar2.enabled}" click="buttonCopiar_clickHandler(event)"
+                                          toolTip="Copia os dados do servidor de origem para o servidor de destino."/>
+                            </s:HGroup>
+                        </mx:Form>
+                        <mx:VBox id="viewCampos1" width="100%" height="100%" label="CAMPOS">
+                            <mx:DataGrid id="dataGridCampos1" dataProvider="{campos1}" height="180" width="100%"
+                                         allowMultipleSelection="true">
+                                <mx:columns>
+                                    <mx:DataGridColumn headerText="Campo" dataField="Field"/>
+                                    <mx:DataGridColumn headerText="Tipo" dataField="Type"/>
+                                    <mx:DataGridColumn headerText="Padrão" dataField="Default"/>
+                                    <mx:DataGridColumn headerText="Extra" dataField="Extra"/>
+                                    <mx:DataGridColumn headerText="Nulo" dataField="Null"/>
+                                    <mx:DataGridColumn headerText="Collation" dataField="Collation"/>
+                                    <mx:DataGridColumn headerText="Comentário" dataField="Comment"/>
+                                </mx:columns>
+                            </mx:DataGrid>
+                            <s:Label text="Total de Campos: {campos1.length}" width="100%" textAlign="center"
+                                     height="20" backgroundColor="#CCCCCC" verticalAlign="middle"/>
+                            <s:Button id="buttonExportCSV1" label="EXPORTAR"
+                                      icon="@Embed(source='assets/export_text-024.png')"
+                                      enabled="false" click="buttonExportCSV1_clickHandler(event)"
+                                      toolTip="Exportar os campos da tabela01 em formato CSV."/>
+                        </mx:VBox>
+                    </s:VGroup>
+                    <s:VGroup width="100%" height="100%">
+                        <mx:Form width="100%" height="100%">
+                            <s:FormHeading label="# BANCO DE DADOS DE DESTINO #"/>
+                            <mx:FormItem label="Servidor:">
+                                <mx:HBox>
+                                    <s:TextInput id="textInputServidor2" width="250" text="localhost" editable="false"/>
+                                    <components:ButtonInfo
+                                            toolTip="Endereço do servidor MySQL de destino. Ex.: localhost (Clique para inserir o exemplo)."
+                                            click="{textInputServidor2.text = 'localhost'}"
+                                            enabled="{textInputServidor2.enabled}"/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <mx:FormItem label="Porta:">
+                                <mx:HBox>
+                                    <s:TextInput id="textInputPorta2" width="50" text="3306" editable="false"/>
+                                    <components:ButtonInfo
+                                            toolTip="Porta do servidor MySQL de destino. Ex.: 3306 (Clique para inserir o exemplo)."
+                                            click="{textInputPorta2.text = '3306'}"
+                                            enabled="{textInputPorta2.enabled}"/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <mx:FormItem label="Usuário do Banco de Dados:">
+                                <mx:HBox>
+                                    <s:TextInput id="textInputUsuario2" width="250" text="iautomat_apps" editable="false"/>
+                                    <components:ButtonInfo
+                                            toolTip="Usuário do servidor MySQL de destino. Ex.: root (Clique para inserir o exemplo)."
+                                            click="{textInputUsuario2.text = 'root'}"
+                                            enabled="{textInputUsuario2.enabled}"/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <mx:FormItem label="Senha do Banco de Dados:">
+                                <mx:HBox>
+                                    <s:TextInput id="textInputSenha2" width="250" text="DHTBy5F#H&amp;b9sP6=" editable="false" displayAsPassword="true"/>
+                                    <components:ButtonInfo
+                                            toolTip="Senha do servidor MySQL de destino. Ex.: root (Clique para inserir o exemplo)."
+                                            click="{textInputSenha2.text = 'root'}"
+                                            enabled="{textInputSenha2.enabled}"/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <mx:FormItem label="Salvar ?">
+                                <mx:HBox>
+                                    <s:CheckBox id="checkBoxSalvar2"/>
+                                    <components:ButtonInfo toolTip="Salvar os dados de acesso em um cookie."
+                                                           enabled="{checkBoxSalvar2.enabled}"/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <mx:FormItem id="itemBancosDados2" label="Bancos de Dados:" visible="false">
+                                <mx:HBox>
+                                    <s:DropDownList id="dropDownListBancos2" width="250" height="27"
+                                                    change="buttonListarTabelas_clickHandler(2)"
+                                                    dataProvider="{bancosDados2}" labelField="Database"/>
+                                    <s:Button id="buttonListarBanco2" label="Atualizar"
+                                              icon="@Embed(source='assets/agt_reload-024.png')"
+                                              click="buttonListarTabelas_clickHandler(2)"
+                                              toolTip="Atualiza as tabelas do banco de dados selecionado."/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <mx:FormItem id="itemTabelas2" label="Tabelas:" visible="false">
+                                <mx:HBox>
+                                    <s:DropDownList id="dropDownListTabelas2" width="250" height="27"
+                                                    change="buttonListarCampos_clickHandler(2)"
+                                                    dataProvider="{tabelas2}"
+                                                    labelField="{'Tables_in_'+dropDownListBancos2.selectedItem.Database}"/>
+                                    <s:Button id="buttonListarTabelas2" label="Atualizar"
+                                              icon="@Embed(source='assets/agt_reload-024.png')"
+                                              click="buttonListarCampos_clickHandler(2)"
+                                              toolTip="Atualiza os campos da tabela selecionada."/>
+                                </mx:HBox>
+                            </mx:FormItem>
+                            <s:Spacer width="100%" height="5"/>
+                            <s:HGroup>
+                                <s:Button id="buttonImportar2" label="IMPORTAR"
+                                          icon="@Embed(source='assets/db_update-024.png')"
+                                          enabled="true" click="buttonImportar2_clickHandler(event)"
+                                          toolTip="Importe as configurações do servidor de destino."/>
+                                <s:Button id="buttonTestar2" label="TESTAR" icon="@Embed(source='assets/ok-024.png')"
+                                          enabled="true" click="buttonTestar_clickHandler(2)"
+                                          toolTip="Teste a conexão com o banco de dados do servidor de destino configurado."/>
+                                <s:Button id="buttonConectar2" label="CONECTAR"
+                                          icon="@Embed(source='assets/connect_established-024.png')"
+                                          enabled="true" click="buttonConectar2_clickHandler(event)"
+                                          toolTip="Conecte com o banco de dados do servidor de destino configurado."/>
+                                <s:Button id="buttonExportar2" label="EXPORTAR"
+                                          icon="@Embed(source='assets/db_comit-024.png')"
+                                          enabled="false" click="buttonExportar2_clickHandler(event)"
+                                          toolTip="Exporte as configurações do servidor de destino."/>
+                                <s:Button id="buttonDesconectar2" label="DESCONECTAR"
+                                          icon="@Embed(source='assets/connect_no-024.png')"
+                                          enabled="false" click="buttonDesconectar_clickHandler(2)"
+                                          toolTip="Desconecta o banco de dados do servidor de destino ativo."/>
+                            </s:HGroup>
+                        </mx:Form>
+                        <mx:VBox id="viewCampos2" width="100%" height="100%" label="CAMPOS">
+                            <mx:DataGrid id="dataGridCampos2" dataProvider="{campos2}" height="180" width="100%"
+                                         allowMultipleSelection="true">
+                                <mx:columns>
+                                    <mx:DataGridColumn headerText="Campo" dataField="Field"/>
+                                    <mx:DataGridColumn headerText="Tipo" dataField="Type"/>
+                                    <mx:DataGridColumn headerText="Padrão" dataField="Default"/>
+                                    <mx:DataGridColumn headerText="Extra" dataField="Extra"/>
+                                    <mx:DataGridColumn headerText="Nulo" dataField="Null"/>
+                                    <mx:DataGridColumn headerText="Collation" dataField="Collation"/>
+                                    <mx:DataGridColumn headerText="Comentário" dataField="Comment"/>
+                                </mx:columns>
+                            </mx:DataGrid>
+                            <s:Label text="Total de Campos: {campos2.length}" width="100%" textAlign="center"
+                                     height="20" backgroundColor="#CCCCCC" verticalAlign="middle"/>
+                            <s:Button id="buttonExportCSV2" label="EXPORTAR"
+                                      icon="@Embed(source='assets/export_text-024.png')"
+                                      enabled="false" click="buttonExportCSV2_clickHandler(event)"
+                                      toolTip="Exportar os campos da tabela02 em formato CSV."/>
+                        </mx:VBox>
+                    </s:VGroup>
+                </mx:HBox>
+            </mx:VBox>
+            <mx:VBox id="vboxCompararTabelas" label="Comparar Tabela" width="100%" height="100%" enabled="false"
+                     icon="@Embed(source='assets/table-024.png')">
+                <s:Label
+                        text="Banco de Dados 01: {dropDownListBancos1.selectedItem.Database} - Tabela 01: {tabela01}   |   Banco de Dados 02: {dropDownListBancos2.selectedItem.Database} - Tabela 02: {tabela02}"
+                        width="100%" textAlign="center"/>
+                <mx:TextArea id="textAreaComparar" selectable="false"
+                             editable="false" width="100%" height="100%"/>
+                <mx:HBox width="100%" verticalAlign="middle">
+                    <mx:Image source="@Embed(source='assets/status_unknown-024.png')"/>
+                    <s:Label text="Erros:"/>
+                    <s:TextInput width="100" textAlign="center" editable="false" text="{errosCompararTabelas}"/>
+                    <components:ButtonInfo toolTip="Exibe a quantidade de erros encontrados na comparação das tabelas."/>
+                    <s:Spacer width="100%"/>
+                    <mx:Button id="buttonCompararTabelas" label="Executar" click="buttonCompararTabelas_clickHandler(event)"
+                               icon="@Embed(source='assets/gear-024.png')"
+                               toolTip="Executar a comparação entre as duas tabelas."/>
+                </mx:HBox>
+            </mx:VBox>
+            <mx:VBox id="vboxCompararTodasTabelas" label="Comparar Todas as Tabelas" width="100%"
+                     horizontalAlign="center" height="100%" enabled="false" icon="@Embed(source='assets/db-data-024.png')"
+                     paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5">
+                <s:Label
+                        text="Banco de Dados 01: {dropDownListBancos1.selectedItem.Database}   |   Banco de Dados 02: {dropDownListBancos2.selectedItem.Database}"
+                        width="100%" textAlign="center"/>
+                <mx:TextArea id="textAreaCompararTodas" selectable="false"
+                             editable="false" width="100%" height="100%"/>
+                <mx:HBox width="100%" verticalAlign="middle">
+                    <mx:Image source="@Embed(source='assets/status_unknown-024.png')"/>
+                    <s:Label text="Erros:"/>
+                    <s:TextInput width="100" textAlign="center" editable="false" text="{errosComparaTodas}"/>
+                    <components:ButtonInfo
+                            toolTip="Exibe a quantidade de erros encontrados na comparação de todas as tabelas."/>
+                    <s:Spacer width="100%"/>
+                    <mx:Button id="buttonSQL" label="Exibir SQL" enabled="{textAreaCompararTodas.text != ''}"
+                               toggle="true" icon="@Embed(source='assets/sql-024.png')"
+                               toolTip="Exibe o SQL gerado pela comparação das tabelas."/>
+                </mx:HBox>
+                <s:CheckBox id="checkBoxComentario" label="Comparar comentários dos campos ?"
+                            toolTip="Faz a comparação dos comentários dos campos."/>
+                <s:CheckBox id="checkBoxErrorOnly" label="Mostrar somente os erros ?"
+                            toolTip="Exibe somente os erros na janela de saída."/>
+                <s:Button id="buttonComparar" label="Comparar Tabelas" click="buttonComparar_clickHandler(event)"
+                          toolTip="Executar a comparação entre todas as tabelas dos dois bancos de dados."
+                          icon="@Embed(source='assets/gear-024.png')"/>
+                <mx:VBox width="100%" id="vboxSQL" visible="{buttonSQL.selected}"
+                         horizontalAlign="center" includeInLayout="{buttonSQL.selected}">
+                    <mx:TextArea id="textAreaSQL" width="100%" height="300" editable="false"/>
+                    <mx:HBox width="100%">
+                        <s:Button id="buttonCopiarSQL" label="Copiar" click="buttonCopiarSQL_clickHandler(event)"
+                                  icon="@Embed(source='assets/editcopy-024.png')"
+                                  toolTip="Copia o código SQL para a área de transferência."/>
+                        <s:Spacer width="100%"/>
+                        <s:Button id="buttonSalvarSQL" label="Salvar" click="buttonSalvarSQL_clickHandler(event)"
+                                  icon="@Embed(source='assets/filesave-024.png')"
+                                  toolTip="Salva o código SQL gerado pela comparação das tabelas."/>
+                        <s:Spacer width="100%"/>
+                        <s:Button id="buttonExecutarSQL" label="Executar" click="buttonExecutarSQL_clickHandler(event)"
+                                  icon="@Embed(source='assets/fileexport-024.png')"
+                                  toolTip="Executa o código SQL no banco de dados 02."/>
+                    </mx:HBox>
+                </mx:VBox>
+            </mx:VBox>
+            <mx:VBox id="vboxCompararDados" label="Comparar Dados" width="100%" height="100%" horizontalAlign="center"
+                     enabled="false" icon="@Embed(source='assets/data-024.png')">
+                <s:Label
+                        text="Banco de Dados 01: {dropDownListBancos1.selectedItem.Database} - Tabela 01: {tabela01}   |   Banco de Dados 02: {dropDownListBancos2.selectedItem.Database} - Tabela 02: {tabela02}"
+                        width="100%" textAlign="center"/>
+                <mx:Button id="buttonCompararDados" label="Executar" click="buttonCompararDados_clickHandler(event)"
+                           icon="@Embed(source='assets/gear-024.png')"
+                           toolTip="Executa a comparação dos dados das duas tabelas."/>
+                <mx:VBox width="100%" height="30%" horizontalScrollPolicy="auto">
+                    <s:Label text="# DADOS DE ORIGEM #" width="100%" textAlign="center"/>
+                    <mx:DataGrid id="dataGridDados1" dataProvider="{dados1}" height="100%" width="100%"
+                                 allowMultipleSelection="true"/>
+                    <s:Label text="Total: {dados1.length}" width="100%" textAlign="center"
+                             height="20" backgroundColor="#CCCCCC" verticalAlign="middle"/>
+                </mx:VBox>
+                <mx:VBox width="100%" height="30%" horizontalScrollPolicy="auto">
+                    <s:Label text="# DADOS DE DESTINO #" width="100%" textAlign="center"/>
+                    <mx:DataGrid id="dataGridDados2" dataProvider="{dados2}" height="100%" width="100%"
+                                 allowMultipleSelection="true"/>
+                    <s:Label text="Total: {dados2.length}" width="100%" textAlign="center"
+                             height="20" backgroundColor="#CCCCCC" verticalAlign="middle"/>
+                </mx:VBox>
+                <mx:HBox width="100%" horizontalAlign="center">
+                    <s:Button id="buttonCompararIds" label="Comparar IDs" click="buttonCompararIds_clickHandler(event)"
+                              toolTip="Compara os IDs dos dados das duas tabelas."
+                              icon="@Embed(source='assets/gear-024.png')"/>
+                </mx:HBox>
+                <mx:DataGrid id="dataGridResultado" dataProvider="{resultado}" height="30%" width="100%"
+                             allowMultipleSelection="true">
+                    <mx:columns>
+                        <mx:DataGridColumn headerText="Tipo" dataField="tipo"/>
+                        <mx:DataGridColumn headerText="ID" dataField="id"/>
+                        <mx:DataGridColumn headerText="Ação"/>
+                    </mx:columns>
+                </mx:DataGrid>
+                <s:Label text="Total: {resultado.length}" width="100%" textAlign="center"
+                         height="20" backgroundColor="#CCCCCC" verticalAlign="middle"/>
+            </mx:VBox>
+            <mx:VBox id="vboxSync" label="Comparar Todos os Dados" width="100%" height="100%" enabled="false"
+                     icon="@Embed(source='assets/db-alldata-024.png')">
+
+            </mx:VBox>
+        </mx:TabNavigator>
+        <s:Label text="Esta versão é uma demonstração e algumas funcionalidades estão limitadas." color="red"/>
+    </mx:VBox>
+</s:Application>
