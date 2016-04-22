@@ -36,7 +36,7 @@ class PHPBDService {
 	public function listarTabelas($usuario,$senha,$servidor,$porta,$bancoDados) {
 		$conexao = $this->openConexao($usuario,$senha,$servidor,$porta);
 		if (!$conexao->select_db($bancoDados)) {
-			die ('Não foi possível conectar com o banco de dados: ' . mysql_error());
+			die ('Não foi possível conectar com o banco de dados: ' . mysqli_error());
 		}
 		$query = "show tables";
 		$result = $conexao->query($query);
@@ -52,7 +52,7 @@ class PHPBDService {
 	public function listarCampos($usuario,$senha,$servidor,$porta,$bancoDados,$tabela) {
 		$conexao = $this->openConexao($usuario,$senha,$servidor,$porta);
 		if (!$conexao->select_db($bancoDados)) {
-			die ('Não foi possível conectar com o banco de dados: ' . mysql_error());
+			die ('Não foi possível conectar com o banco de dados: ' . mysqli_error());
 		}
 		$query = "SHOW FULL COLUMNS FROM ".$tabela;
 		$result = $conexao->query($query);
@@ -68,13 +68,13 @@ class PHPBDService {
 	public function compararTodasTabelas($usuario,$senha,$servidor,$porta,$bancoDados,$usuario1,$senha1,$servidor1,$porta1,$bancoDados1,$iscomment,$iserror) {
 		$conexao = $this->openConexao($usuario,$senha,$servidor,$porta);
 		if (!$conexao->select_db($bancoDados)) {
-			die ('Não foi possível conectar com o banco de dados: ' . mysql_error());
+			die ('Não foi possível conectar com o banco de dados: ' . mysqli_error());
 		}
 		$query0 = "show tables";
 		$result0 = $conexao->query($query0);
 		$conexao1 = $this->openConexao($usuario1,$senha1,$servidor1,$porta1);
 		if (!$conexao1->select_db($bancoDados1)) {
-			die ('Não foi possível conectar com o banco de dados: ' . mysql_error());
+			die ('Não foi possível conectar com o banco de dados: ' . mysqli_error());
 		}
 		$return = "";
 		$cont = 0;
@@ -215,7 +215,7 @@ class PHPBDService {
 	public function listarDados($usuario,$senha,$servidor,$porta,$bancoDados,$tabela) {
 		$conexao = $this->openConexao($usuario,$senha,$servidor,$porta);
 		if (!$conexao->select_db($bancoDados)) {
-			die ('Não foi possível conectar com o banco de dados: ' . mysql_error());
+			die ('Não foi possível conectar com o banco de dados: ' . mysqli_error());
 		}
 		$query = "SELECT * FROM ".$tabela;
 		$result = $conexao->query($query);
@@ -231,7 +231,7 @@ class PHPBDService {
 	public function executarSQL($usuario,$senha,$servidor,$porta,$bancoDados,$sql) {
 		$conexao = $this->openConexao($usuario,$senha,$servidor,$porta);
 		if (!$conexao->select_db($bancoDados)) {
-			die ('Não foi possível conectar com o banco de dados: ' . mysql_error());
+			die ('Não foi possível conectar com o banco de dados: ' . mysqli_error());
 		}
 		$querys = explode(";", $sql);
 		for($i=0; $i<count($querys); $i++) {
@@ -242,7 +242,7 @@ class PHPBDService {
 	}
 	private function closeConexao($conexao) {
 		if(!$conexao->close()) {
-			die ('Não foi possível fechar a conexão com o banco de dados: ' . mysql_error());
+			die ('Não foi possível fechar a conexão com o banco de dados: ' . mysqli_error());
 		}
 		return true;
 	}

@@ -623,7 +623,7 @@
 	</fx:Script>
 
     <fx:Declarations>
-        <s:RemoteObject endpoint="amf/index.php"
+        <s:RemoteObject endpoint="php/amf/index.php"
                         id="remote1"
                         source="PHPBDService"
                         destination="PHPBDService"
@@ -635,7 +635,7 @@
             <s:method name="listarDados" result="listarDados1_resultHandler(event)"/>
             <s:method name="compararTodasTabelas" result="compararTodasTabelas_resultHandler(event)"/>
         </s:RemoteObject>
-        <s:RemoteObject endpoint="amf/index.php"
+        <s:RemoteObject endpoint="php/amf/index.php"
                         id="remote2"
                         source="PHPBDService"
                         destination="PHPBDService"
