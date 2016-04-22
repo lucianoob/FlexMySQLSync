@@ -42,7 +42,7 @@
         [Bindable]
         private var titulo:String = "FlexMySQLSync";
         [Bindable]
-        private var versao:String = "v4.43";
+        private var versao:String = "v5.36";
         [Bindable]
         private var descricao:String = "Sincronizador de bancos de dados MySQL dos sistemas da iAutomate.";
 
@@ -352,11 +352,12 @@
         }
 
         protected function buttonImportar1_clickHandler(event:MouseEvent):void {
-            fo.removeEventListener(Event.SELECT, onFileSelect2);
+			Alert.show("Esta função está desabilitada", "AVISO");
+			/*fo.removeEventListener(Event.SELECT, onFileSelect2);
             fo.removeEventListener(Event.COMPLETE, onFileComplete2);
             fo.browse([myFilter]);
             fo.addEventListener(Event.SELECT, onFileSelect1);
-            fo.addEventListener(Event.COMPLETE, onFileComplete1);
+            fo.addEventListener(Event.COMPLETE, onFileComplete1);*/
         }
 
         private function onFileSelect1(event:Event):void {
@@ -374,11 +375,12 @@
         }
 
         protected function buttonImportar2_clickHandler(event:MouseEvent):void {
-            fo.removeEventListener(Event.SELECT, onFileSelect1);
+			Alert.show("Esta função está desabilitada", "AVISO");
+			/*fo.removeEventListener(Event.SELECT, onFileSelect1);
             fo.removeEventListener(Event.COMPLETE, onFileComplete1);
             fo.browse([myFilter]);
             fo.addEventListener(Event.SELECT, onFileSelect2);
-            fo.addEventListener(Event.COMPLETE, onFileComplete2);
+            fo.addEventListener(Event.COMPLETE, onFileComplete2);*/
         }
 
         private function onFileSelect2(event:Event):void {
@@ -514,7 +516,8 @@
         }
 
         protected function buttonCompararIds_clickHandler(event:MouseEvent):void {
-            aguardeWindow(true);
+			Alert.show("Esta função está desabilitada", "AVISO");
+			/*aguardeWindow(true);
             resultado = new ArrayCollection;
             var i:int, j:int;
             var id:Object, obj1:Object, obj2:Object, erro:Object;
@@ -549,7 +552,7 @@
                     resultado.addItem(erro);
                 }
             }
-            aguardeWindow(false);
+            aguardeWindow(false);*/
         }
 
         protected function buttonComparar_clickHandler(event:MouseEvent):void {
@@ -567,15 +570,17 @@
         }
 
         protected function buttonCopiarSQL_clickHandler(event:MouseEvent):void {
-            if (textAreaSQL.text != "") {
+			Alert.show("Esta função está desabilitada", "AVISO");
+			/*if (textAreaSQL.text != "") {
                 System.setClipboard(textAreaSQL.text);
                 Alert.show("O script em SQL foi copiado para a área de transferência !!!", "AVISO");
-            }
+            }*/
         }
 
         protected function buttonSalvarSQL_clickHandler(event:MouseEvent):void {
-            if (textAreaSQL.text != "")
-                fs.save(textAreaSQL.text, "update_" + dropDownListBancos2.selectedItem.Database + ".sql");
+			Alert.show("Esta função está desabilitada", "AVISO");
+			//if (textAreaSQL.text != "")
+                //fs.save(textAreaSQL.text, "update_" + dropDownListBancos2.selectedItem.Database + ".sql");
         }
 
         protected function buttonCopiar_clickHandler(event:MouseEvent):void {
@@ -586,7 +591,8 @@
         }
 
         protected function buttonExecutarSQL_clickHandler(event:MouseEvent):void {
-            Alert.show("Você confirma a execução do script SQL acima no banco de dados '" + dropDownListBancos1.selectedItem.Database + "' ?", "CONFIRMAÇÃO", Alert.NO | Alert.YES, null, closeHandler, null, Alert.NO);
+			Alert.show("Esta função está desabilitada", "AVISO");
+            //Alert.show("Você confirma a execução do script SQL acima no banco de dados '" + dropDownListBancos1.selectedItem.Database + "' ?", "CONFIRMAÇÃO", Alert.NO | Alert.YES, null, closeHandler, null, Alert.NO);
         }
 
         private function closeHandler(event:CloseEvent):void {
@@ -642,20 +648,19 @@
             <s:method name="executarSQL" result="executarSQL_resultHandler(event)"/>
         </s:RemoteObject>
     </fx:Declarations>
-    <s:controlBarContent>
-        <mx:HBox width="100%" verticalAlign="middle" horizontalAlign="center">
-            <s:Image id="imageAbout" source="@Embed(source='assets/icon_048.png')"/>
-            <mx:VBox>
-                <mx:HBox>
-                    <s:Label text="{titulo} {versao}" fontSize="18"/>
-                    <mx:Image source="@Embed(source='assets/about-024.png')" buttonMode="true"
-                              toolTip="Saiba mais sobre o FlexMySQLSync." click="imageAbout_clickHandler(event)"/>
-                </mx:HBox>
-                <s:Label text="{descricao}" fontSize="12"/>
-            </mx:VBox>
-        </mx:HBox>
-    </s:controlBarContent>
-    <mx:VBox width="100%" height="100%" paddingTop="10" paddingBottom="10" paddingLeft="10" paddingRight="10" horizontalAlign="center">
+	<mx:VBox width="100%" height="100%" paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10" horizontalAlign="center">
+	    <mx:HBox width="100%" verticalAlign="middle" horizontalAlign="center">
+	        <s:Image id="imageAbout" source="@Embed(source='assets/icon_048.png')"/>
+	        <mx:VBox>
+	            <mx:HBox>
+	                <s:Label text="{titulo} {versao}" fontSize="18"/>
+	                <mx:Image source="@Embed(source='assets/info-icon.png')" buttonMode="true"
+	                          toolTip="Saiba mais sobre o FlexMySQLSync." click="imageAbout_clickHandler(event)"/>
+	            </mx:HBox>
+	            <s:Label text="{descricao}" fontSize="12"/>
+	        </mx:VBox>
+	    </mx:HBox>
+		<mx:HRule width="100%"/>
         <mx:TabNavigator id="tabnavigator" borderStyle="solid" width="100%" height="100%"
                          paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10">
             <mx:VBox label="Bancos de Dados" width="100%" height="100%" icon="@Embed(source='assets/db-024.png')">
@@ -692,7 +697,7 @@
                             </mx:FormItem>
                             <mx:FormItem label="Senha do Banco de Dados:">
                                 <mx:HBox>
-                                    <s:TextInput id="textInputSenha1" width="250" text="DHTBy5F#H&amp;b9sP6=" editable="false" displayAsPassword="true"/>
+                                    <s:TextInput id="textInputSenha1" width="250" text="OWGofw3tqKvnSFFN" editable="false" displayAsPassword="true"/>
                                     <components:ButtonInfo
                                             toolTip="Senha do servidor MySQL de origem. Ex.: root (Clique para inserir o exemplo)."
                                             click="{textInputSenha1.text = 'root'}"
@@ -810,7 +815,7 @@
                             </mx:FormItem>
                             <mx:FormItem label="Senha do Banco de Dados:">
                                 <mx:HBox>
-                                    <s:TextInput id="textInputSenha2" width="250" text="DHTBy5F#H&amp;b9sP6=" editable="false" displayAsPassword="true"/>
+                                    <s:TextInput id="textInputSenha2" width="250" text="OWGofw3tqKvnSFFN" editable="false" displayAsPassword="true"/>
                                     <components:ButtonInfo
                                             toolTip="Senha do servidor MySQL de destino. Ex.: root (Clique para inserir o exemplo)."
                                             click="{textInputSenha2.text = 'root'}"
@@ -998,6 +1003,7 @@
 
             </mx:VBox>
         </mx:TabNavigator>
+		<mx:HRule width="100%"/>
         <s:Label text="Esta versão é uma demonstração e algumas funcionalidades estão limitadas." color="red"/>
     </mx:VBox>
 </s:Application>
